@@ -12,6 +12,7 @@
 #include "Engine/World.h"
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
+#include "Components/CapsuleComponent.h"
 
 // Sets default values
 AEnemyCharacter::AEnemyCharacter()
@@ -190,15 +191,6 @@ void AEnemyCharacter::PerformAttackTrace()
 		Params
 	);
 
-	if (!bHit)
-	{
-		if (GEngine)
-		{
-			GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Red, TEXT("NO HIT"));
-		}
-		return;
-	}
-
 	AActor* PlayerActor = nullptr;
 	for (const FHitResult& Hit : HitResults)
 	{
@@ -216,29 +208,27 @@ void AEnemyCharacter::PerformAttackTrace()
 
 	if (PlayerActor)
 	{
-		if (HitActorsThisSwing.Contains(PlayerActor))
-		{
-			return;
-		}
-
-		HitActorsThisSwing.Add(PlayerActor);
-		GEngine->AddOnScreenDebugMessage(-1, 2.f, FColor::Green, TEXT("PLAYER HIT"));
-
 		const bool bParrySucceeded = TryCallPlayerParry(PlayerActor);
 
 		GEngine->AddOnScreenDebugMessage(
 			-1,
 			2.f,
 			FColor::Yellow,
-			bParrySucceeded ? TEXT("PARRY SUCCESS") : TEXT("NORMAL HIT")
+			bParrySucceeded ? TEXT("PARRY SUCCESS - DAMAGE CANCELED") : TEXT("NORMAL HIT")
 		);
 
 		if (bParrySucceeded)
 		{
+			EndAttackTrace();
 			return;
 		}
 
-		UE_LOG(LogTemp, Error, TEXT("ApplyDamage To Player / Damage: %f"), AttackDamage);
+		if (HitActorsThisSwing.Contains(PlayerActor))
+		{
+			return;
+		}
+
+		HitActorsThisSwing.Add(PlayerActor);
 
 		UGameplayStatics::ApplyDamage(
 			PlayerActor,
@@ -324,6 +314,9 @@ void AEnemyCharacter::TakeDamage(float damage)
 		USkeletalMeshComponent* MeshComponent = GetMesh();
 		MeshComponent->SetCollisionEnabled(ECollisionEnabled::NoCollision);
 		MeshComponent->SetCollisionResponseToAllChannels(ECR_Ignore);
+
+		GetCapsuleComponent()->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+		GetCapsuleComponent()->SetCollisionResponseToAllChannels(ECR_Ignore);
 
 		UE_LOG(LogTemp, Error, TEXT("Monster Dead"));
 

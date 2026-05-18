@@ -125,7 +125,7 @@ public:
 	TSubclassOf<UHPBar> HPBarWidgetClass;
 
 	UFUNCTION(BlueprintCallable)
-	void TakeDamage(float damage);
+	virtual void TakeDamage(float damage);
 
 	UPROPERTY(EditAnywhere, Category = "UI|HPBar")
 	float HPBarVisibleDistance = 1000.f;
