@@ -11,7 +11,9 @@
 
 #include "UI/HPBar.h"
 #include "Components/WidgetComponent.h"
-
+#include "Actor/BossAOEIndicator.h"
+#include "AIController.h"
+#include "BehaviorTree/BlackboardComponent.h"
 
 ABossCharacter::ABossCharacter()
 {
@@ -53,6 +55,7 @@ void ABossCharacter::Tick(float DeltaTime)
 
 void ABossCharacter::PlayPatternMontage(int32 Index)
 {
+
 	if (bIsDead)
 	{
 		return;
@@ -166,10 +169,30 @@ void ABossCharacter::UpdateBossHPBarPercent()
 
 void ABossCharacter::TakeDamage(float damage)
 {
+
 	const bool bWasDead = bIsDead;
 
 	Super::TakeDamage(damage);
 
+	if (!bHalfHPPatternTriggered && EnemyStats.MaxHP > 0)
+	{
+		const float HPPercent =
+			static_cast<float>(EnemyStats.CurrentHP) /
+			static_cast<float>(EnemyStats.MaxHP);
+
+		if (HPPercent <= 0.5f)
+		{
+			bHalfHPPatternTriggered = true;
+
+			if (AAIController* AICon = Cast<AAIController>(GetController()))
+			{
+				if (UBlackboardComponent* BB = AICon->GetBlackboardComponent())
+				{
+					BB->SetValueAsBool(TEXT("CanUseHalfHPPattern"), true);
+				}
+			}
+		}
+	}
 	UpdateBossHPBarPercent();
 
 	if (!bWasDead && bIsDead)
@@ -194,5 +217,104 @@ void ABossCharacter::TakeDamage(float damage)
 				}
 			}
 		}
+	}
+}
+
+void ABossCharacter::StartAOEIndicatorCharge()
+{
+	if (!AOEIndicatorClass)
+	{
+		return;
+	}
+
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	FVector SpawnLocation = GetActorLocation();
+
+	FHitResult Hit;
+	const FVector TraceStart = GetActorLocation();
+	const FVector TraceEnd = TraceStart - FVector(0.f, 0.f, 3000.f);
+
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this);
+
+	if (World->LineTraceSingleByChannel(Hit, TraceStart, TraceEnd, ECC_Visibility, Params))
+	{
+		SpawnLocation = Hit.ImpactPoint;
+	}
+
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.Owner = this;
+	SpawnParams.SpawnCollisionHandlingOverride =
+		ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+
+	CurrentAOEIndicator = World->SpawnActor<ABossAOEIndicator>(
+		AOEIndicatorClass,
+		SpawnLocation,
+		FRotator::ZeroRotator,
+		SpawnParams
+	);
+
+	if (CurrentAOEIndicator)
+	{
+		CurrentAOEIndicator->StartCharge(AOEChargeDuration, AOERadius);
+	}
+}
+
+void ABossCharacter::ExecuteAOEAttack()
+{
+	UWorld* World = GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	const FVector AttackCenter =
+		CurrentAOEIndicator ? CurrentAOEIndicator->GetActorLocation() : GetActorLocation();
+
+	TArray<FOverlapResult> OverlapResults;
+
+	FCollisionQueryParams Params;
+	Params.AddIgnoredActor(this);
+
+	const bool bHit = World->OverlapMultiByChannel(
+		OverlapResults,
+		AttackCenter,
+		FQuat::Identity,
+		ECC_Pawn,
+		FCollisionShape::MakeSphere(AOERadius),
+		Params
+	);
+
+	if (bHit)
+	{
+		for (const FOverlapResult& Result : OverlapResults)
+		{
+			AActor* HitActor = Result.GetActor();
+
+			if (!HitActor || !HitActor->ActorHasTag(TEXT("Player")))
+			{
+				continue;
+			}
+
+			UGameplayStatics::ApplyDamage(
+				HitActor,
+				AOEDamage,
+				GetController(),
+				this,
+				UDamageType::StaticClass()
+			);
+		}
+	}
+
+	if (CurrentAOEIndicator)
+	{
+		CurrentAOEIndicator->ForceComplete();
+		CurrentAOEIndicator->Destroy();
+		CurrentAOEIndicator = nullptr;
 	}
 }

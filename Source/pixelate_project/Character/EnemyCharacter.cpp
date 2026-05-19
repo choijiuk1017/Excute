@@ -13,6 +13,7 @@
 #include "Kismet/GameplayStatics.h"
 #include "TimerManager.h"
 #include "Components/CapsuleComponent.h"
+#include "AIController.h"
 
 // Sets default values
 AEnemyCharacter::AEnemyCharacter()

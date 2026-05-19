@@ -67,4 +67,28 @@ protected:
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Boss|UI")
 	bool bBossDeadWidgetShown = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss|AOE")
+	TSubclassOf<class ABossAOEIndicator> AOEIndicatorClass;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss|AOE")
+	float AOERadius = 400.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss|AOE")
+	float AOEDamage = 30.f;
+
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Boss|AOE")
+	float AOEChargeDuration = 1.5f;
+
+	UPROPERTY()
+	ABossAOEIndicator* CurrentAOEIndicator = nullptr;
+
+	UFUNCTION(BlueprintCallable, Category = "Boss|AOE")
+	void StartAOEIndicatorCharge();
+
+	UFUNCTION(BlueprintCallable, Category = "Boss|AOE")
+	void ExecuteAOEAttack();
+
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = "Boss|Phase")
+	bool bHalfHPPatternTriggered = false;
 };

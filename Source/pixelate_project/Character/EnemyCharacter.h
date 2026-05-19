@@ -104,7 +104,7 @@ public:
 	float ParryStunDuration = 0.8f;
 
 	UFUNCTION(BlueprintCallable, Category = "Combat|Parry")
-	void HandleParried();
+	virtual void HandleParried();
 
 	UFUNCTION()
 	void OnParriedMontageEnded(UAnimMontage* Montage, bool bInterrupted);
